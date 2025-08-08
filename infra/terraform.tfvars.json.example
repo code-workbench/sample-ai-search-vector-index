@@ -9,7 +9,7 @@
   "search_partition_count": 1,
   "semantic_search_sku": "free",
   "sql_admin_username": "sqladmin",
-  "sql_admin_password": "ComplexPassword123!",
+  "sql_admin_password": "PUT_YOUR_COMPLEX_PASSWORD_HERE",
   "sql_database_sku": "GP_S_Gen5_1",
   "storage_account_tier": "Standard",
   "storage_replication_type": "LRS",

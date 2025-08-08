@@ -71,6 +71,18 @@ resource "azurecaf_name" "private_endpoint_sql" {
   suffixes      = [var.environment]
 }
 
+resource "azurecaf_name" "ai_services" {
+  name          = var.project_name
+  resource_type = "azurerm_cognitive_account"
+  suffixes      = [var.environment]
+}
+
+resource "azurecaf_name" "private_endpoint_ai_services" {
+  name          = "${var.project_name}-ai-services"
+  resource_type = "azurerm_private_endpoint"
+  suffixes      = [var.environment]
+}
+
 # Resource Group
 resource "azurerm_resource_group" "main" {
   name     = azurecaf_name.resource_group.result
@@ -197,6 +209,26 @@ resource "azurerm_mssql_database" "main" {
   tags = var.tags
 }
 
+# Azure AI Services Account for Custom Vision
+resource "azurerm_cognitive_account" "main" {
+  name                = azurecaf_name.ai_services.result
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  kind                = "CognitiveServices"
+  sku_name            = "S0"
+  
+  # Security settings
+  public_network_access_enabled = false
+  custom_subdomain_name         = azurecaf_name.ai_services.result
+  
+  # Identity for accessing other Azure resources
+  identity {
+    type = "SystemAssigned"
+  }
+
+  tags = var.tags
+}
+
 # Private DNS Zone for Search Service
 resource "azurerm_private_dns_zone" "search" {
   name                = "privatelink.search.windows.net"
@@ -216,6 +248,14 @@ resource "azurerm_private_dns_zone" "storage_blob" {
 # Private DNS Zone for SQL Server
 resource "azurerm_private_dns_zone" "sql" {
   name                = "privatelink.database.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+
+  tags = var.tags
+}
+
+# Private DNS Zone for AI Services
+resource "azurerm_private_dns_zone" "ai_services" {
+  name                = "privatelink.cognitiveservices.azure.com"
   resource_group_name = azurerm_resource_group.main.name
 
   tags = var.tags
@@ -246,6 +286,16 @@ resource "azurerm_private_dns_zone_virtual_network_link" "sql" {
   name                  = "${azurecaf_name.sql_server.result}-vnet-link"
   resource_group_name   = azurerm_resource_group.main.name
   private_dns_zone_name = azurerm_private_dns_zone.sql.name
+  virtual_network_id    = var.vnet_id
+
+  tags = var.tags
+}
+
+# Link Private DNS Zone to existing VNet for AI Services
+resource "azurerm_private_dns_zone_virtual_network_link" "ai_services" {
+  name                  = "${azurecaf_name.ai_services.result}-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.ai_services.name
   virtual_network_id    = var.vnet_id
 
   tags = var.tags
@@ -312,6 +362,28 @@ resource "azurerm_private_endpoint" "sql" {
   private_dns_zone_group {
     name                 = "sql-dns-zone-group"
     private_dns_zone_ids = [azurerm_private_dns_zone.sql.id]
+  }
+
+  tags = var.tags
+}
+
+# Private Endpoint for AI Services
+resource "azurerm_private_endpoint" "ai_services" {
+  name                = azurecaf_name.private_endpoint_ai_services.result
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = var.subnet_id
+
+  private_service_connection {
+    name                           = "${azurecaf_name.ai_services.result}-connection"
+    private_connection_resource_id = azurerm_cognitive_account.main.id
+    subresource_names              = ["account"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "ai-services-dns-zone-group"
+    private_dns_zone_ids = [azurerm_private_dns_zone.ai_services.id]
   }
 
   tags = var.tags

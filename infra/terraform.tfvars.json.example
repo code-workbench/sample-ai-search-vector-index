@@ -1,0 +1,23 @@
+{
+  "project_name": "my-ai-search-project",
+  "environment": "dev",
+  "location": "East US",
+  "vnet_id": "/subscriptions/{subscription-id}/resourceGroups/{vnet-resource-group}/providers/Microsoft.Network/virtualNetworks/{vnet-name}",
+  "subnet_id": "/subscriptions/{subscription-id}/resourceGroups/{vnet-resource-group}/providers/Microsoft.Network/virtualNetworks/{vnet-name}/subnets/{subnet-name}",
+  "search_sku": "standard",
+  "search_replica_count": 1,
+  "search_partition_count": 1,
+  "semantic_search_sku": "free",
+  "sql_admin_username": "sqladmin",
+  "sql_admin_password": "ComplexPassword123!",
+  "sql_database_sku": "GP_S_Gen5_1",
+  "storage_account_tier": "Standard",
+  "storage_replication_type": "LRS",
+  "tags": {
+    "environment": "development",
+    "project": "ai-search-vector-index",
+    "managed-by": "terraform",
+    "cost-center": "engineering",
+    "owner": "data-team"
+  }
+}

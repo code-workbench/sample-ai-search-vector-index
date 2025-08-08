@@ -143,6 +143,7 @@ resource "azurerm_search_service" "main" {
   partition_count              = var.search_partition_count
   public_network_access_enabled = false
   
+ 
   # Enable semantic search if using Standard tier or higher
   semantic_search_sku = var.search_sku == "basic" ? null : var.semantic_search_sku
 
@@ -314,6 +315,20 @@ resource "azurerm_private_endpoint" "sql" {
   }
 
   tags = var.tags
+}
+
+# Shared Private Link Service from AI Search to Storage Account
+resource "azurerm_search_shared_private_link_service" "storage" {
+  name               = "${azurecaf_name.search_service.result}-storage-link"
+  search_service_id  = azurerm_search_service.main.id
+  subresource_name   = "blob"
+  target_resource_id = azurerm_storage_account.main.id
+  request_message    = "Please approve this private link connection for AI Search to access Storage Account"
+
+  depends_on = [
+    azurerm_search_service.main,
+    azurerm_storage_account.main
+  ]
 }
 
 # Role assignment for AI Search to access Storage Account

@@ -37,6 +37,34 @@ flowchart TD
 
 This diagram illustrates the secure, private network architecture deployed by the infrastructure code. All resources are isolated within a virtual network, with private endpoints and DNS zones ensuring secure, internal-only access.
 
+## 🏢 Attaching to an Existing Virtual Network
+
+This solution is designed to deploy resources into an existing Azure Virtual Network (VNet). If you already have a VNet, ensure you provide its name and resource group in the deployment parameters.
+
+If you **do not have a VNet**, you can create one using the Azure CLI:
+
+```bash
+# Create a resource group (if needed)
+az group create --name rg-aisearch-private-vnet --location usgovvirginia
+
+# Create a virtual network with two subnets
+az network vnet create \
+  --resource-group rg-aisearch-private-vnet \
+  --name search-vnet \
+  --address-prefix 10.0.0.0/16 \
+  --subnet-name ai-search-subnet \
+  --subnet-prefix 10.0.1.0/24
+
+# Add a subnet for private endpoints
+az network vnet subnet create \
+  --resource-group rg-aisearch-private-vnet \
+  --vnet-name search-vnet \
+  --name private-endpoints-subnet \
+  --address-prefix 10.0.2.0/24
+```
+
+Update your deployment parameters to reference your VNet and subnet names. This ensures all resources are securely deployed within your chosen network environment.
+
 ## 🏗️ Infrastructure
 
 The `infra/` folder contains a comprehensive Bicep template that creates:
@@ -75,6 +103,15 @@ cd sample-ai-search-vector-index
 
 # Deploy using the provided script
 ./infra/deploy.sh
+
+# Then run the following to lock down the blob storage:
+STORAGE_ACCOUNT_NAME=""
+RESOURCE_GROUP_NAME=""
+az storage account update \
+  --name $STORAGE_ACCOUNT_NAME \
+  --resource-group $RESOURCE_GROUP_NAME \
+  --public-network-access Disabled \
+  --default-action Deny
 ```
 
 Or deploy manually:
@@ -87,6 +124,15 @@ az deployment group create \
   --resource-group rg-aisearch-private \
   --template-file infra/main.bicep \
   --parameters infra/main.parameters.json
+
+# Then run the following to lock down the blob storage:
+STORAGE_ACCOUNT_NAME=""
+RESOURCE_GROUP_NAME=""
+az storage account update \
+  --name $STORAGE_ACCOUNT_NAME \
+  --resource-group $RESOURCE_GROUP_NAME \
+  --public-network-access Disabled \
+  --default-action Deny
 ```
 
 ### Validate Deployment

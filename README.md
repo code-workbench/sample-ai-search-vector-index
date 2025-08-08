@@ -2,6 +2,41 @@
 
 This repository contains a complete Azure AI Search infrastructure solution with private endpoints, designed for secure vector search implementations.
 
+## 🗺️ Architecture Overview
+
+```mermaid
+flowchart TD
+  subgraph VNet["Virtual Network (10.0.0.0/16)"]
+    subgraph Subnet1["AI Search Subnet (10.0.1.0/24)"]
+      AI[Azure AI Search Service]
+    end
+    subgraph Subnet2["Private Endpoints Subnet (10.0.2.0/24)"]
+      PE1[Private Endpoint: AI Search]
+      PE2[Private Endpoint: Storage]
+    end
+  end
+
+  Storage[Azure Storage Account]
+  DNS[Private DNS Zones]
+  LA[Log Analytics Workspace]
+  AIInsights[Application Insights]
+
+  AI -- "Private Endpoint" --> PE1
+  Storage -- "Private Endpoint" --> PE2
+  PE1 -- "VNet Integration" --> VNet
+  PE2 -- "VNet Integration" --> VNet
+
+  PE1 -- "DNS Resolution" --> DNS
+  PE2 -- "DNS Resolution" --> DNS
+
+  AI -- "Diagnostics" --> LA
+  AI -- "Monitoring" --> AIInsights
+  Storage -- "Diagnostics" --> LA
+  Storage -- "Monitoring" --> AIInsights
+```
+
+This diagram illustrates the secure, private network architecture deployed by the infrastructure code. All resources are isolated within a virtual network, with private endpoints and DNS zones ensuring secure, internal-only access.
+
 ## 🏗️ Infrastructure
 
 The `infra/` folder contains a comprehensive Bicep template that creates:

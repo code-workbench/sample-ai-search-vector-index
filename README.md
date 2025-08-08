@@ -7,12 +7,13 @@ This repository contains a complete Azure AI Search infrastructure solution with
 ```mermaid
 flowchart TD
   subgraph VNet["Virtual Network (10.0.0.0/16)"]
-    subgraph Subnet1["AI Search Subnet (10.0.1.0/24)"]
+    subgraph SearchSubnet["AI Search Subnet (10.0.1.0/24)"]
       AI[Azure AI Search Service]
     end
-    subgraph Subnet2["Private Endpoints Subnet (10.0.2.0/24)"]
-      PE1[Private Endpoint: AI Search]
-      PE2[Private Endpoint: Storage]
+    subgraph EndpointSubnet["Private Endpoints Subnet (10.0.2.0/24)"]
+      PE_Search[Private Endpoint: AI Search]
+      PE_Storage[Private Endpoint: Storage]
+      PE_LogAnalytics[Private Endpoint: Log Analytics]
     end
   end
 
@@ -21,13 +22,17 @@ flowchart TD
   LA[Log Analytics Workspace]
   AIInsights[Application Insights]
 
-  AI -- "Private Endpoint" --> PE1
-  Storage -- "Private Endpoint" --> PE2
-  PE1 -- "VNet Integration" --> VNet
-  PE2 -- "VNet Integration" --> VNet
+  AI -- "Private Endpoint" --> PE_Search
+  Storage -- "Private Endpoint" --> PE_Storage
+  LA -- "Private Endpoint" --> PE_LogAnalytics
 
-  PE1 -- "DNS Resolution" --> DNS
-  PE2 -- "DNS Resolution" --> DNS
+  PE_Search -- "VNet Integration" --> VNet
+  PE_Storage -- "VNet Integration" --> VNet
+  PE_LogAnalytics -- "VNet Integration" --> VNet
+
+  PE_Search -- "DNS Resolution" --> DNS
+  PE_Storage -- "DNS Resolution" --> DNS
+  PE_LogAnalytics -- "DNS Resolution" --> DNS
 
   AI -- "Diagnostics" --> LA
   AI -- "Monitoring" --> AIInsights

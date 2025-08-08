@@ -83,6 +83,18 @@ resource "azurecaf_name" "private_endpoint_ai_services" {
   suffixes      = [var.environment]
 }
 
+resource "azurecaf_name" "openai_account" {
+  name          = var.project_name
+  resource_type = "azurerm_cognitive_account"
+  suffixes      = [var.environment, "openai"]
+}
+
+resource "azurecaf_name" "private_endpoint_openai" {
+  name          = "${var.project_name}-openai"
+  resource_type = "azurerm_private_endpoint"
+  suffixes      = [var.environment]
+}
+
 # Resource Group
 resource "azurerm_resource_group" "main" {
   name     = azurecaf_name.resource_group.result
@@ -229,6 +241,43 @@ resource "azurerm_cognitive_account" "main" {
   tags = var.tags
 }
 
+# Azure OpenAI Account
+resource "azurerm_cognitive_account" "openai" {
+  name                = azurecaf_name.openai_account.result
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  kind                = "OpenAI"
+  sku_name            = "S0"
+  
+  # Security settings
+  public_network_access_enabled = false
+  custom_subdomain_name         = azurecaf_name.openai_account.result
+  
+  # Identity for accessing other Azure resources
+  identity {
+    type = "SystemAssigned"
+  }
+
+  tags = var.tags
+}
+
+# Azure OpenAI Model Deployment for text-embedding-ada-002
+resource "azurerm_cognitive_deployment" "text_embedding_ada_002" {
+  name                 = "text-embedding-ada-002"
+  cognitive_account_id = azurerm_cognitive_account.openai.id
+
+  model {
+    format  = "OpenAI"
+    name    = "text-embedding-ada-002"
+    version = "2"
+  }
+
+  scale {
+    type     = "Standard"
+    capacity = 120
+  }
+}
+
 # Private DNS Zone for Search Service
 resource "azurerm_private_dns_zone" "search" {
   name                = "privatelink.search.windows.net"
@@ -256,6 +305,14 @@ resource "azurerm_private_dns_zone" "sql" {
 # Private DNS Zone for AI Services
 resource "azurerm_private_dns_zone" "ai_services" {
   name                = "privatelink.cognitiveservices.azure.com"
+  resource_group_name = azurerm_resource_group.main.name
+
+  tags = var.tags
+}
+
+# Private DNS Zone for OpenAI
+resource "azurerm_private_dns_zone" "openai" {
+  name                = "privatelink.openai.azure.com"
   resource_group_name = azurerm_resource_group.main.name
 
   tags = var.tags
@@ -296,6 +353,16 @@ resource "azurerm_private_dns_zone_virtual_network_link" "ai_services" {
   name                  = "${azurecaf_name.ai_services.result}-vnet-link"
   resource_group_name   = azurerm_resource_group.main.name
   private_dns_zone_name = azurerm_private_dns_zone.ai_services.name
+  virtual_network_id    = var.vnet_id
+
+  tags = var.tags
+}
+
+# Link Private DNS Zone to existing VNet for OpenAI
+resource "azurerm_private_dns_zone_virtual_network_link" "openai" {
+  name                  = "${azurecaf_name.openai_account.result}-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.openai.name
   virtual_network_id    = var.vnet_id
 
   tags = var.tags
@@ -384,6 +451,28 @@ resource "azurerm_private_endpoint" "ai_services" {
   private_dns_zone_group {
     name                 = "ai-services-dns-zone-group"
     private_dns_zone_ids = [azurerm_private_dns_zone.ai_services.id]
+  }
+
+  tags = var.tags
+}
+
+# Private Endpoint for OpenAI
+resource "azurerm_private_endpoint" "openai" {
+  name                = azurecaf_name.private_endpoint_openai.result
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = var.subnet_id
+
+  private_service_connection {
+    name                           = "${azurecaf_name.openai_account.result}-connection"
+    private_connection_resource_id = azurerm_cognitive_account.openai.id
+    subresource_names              = ["account"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "openai-dns-zone-group"
+    private_dns_zone_ids = [azurerm_private_dns_zone.openai.id]
   }
 
   tags = var.tags
@@ -510,3 +599,15 @@ resource "azurerm_monitor_diagnostic_setting" "sql_database" {
     category = "AllMetrics"
   }
 }
+
+# NOTE: Azure AI Search data sources, indexes, skillsets, and indexers 
+# are not directly supported by the AzureRM Terraform provider.
+# These resources should be created using:
+# 1. Azure CLI commands
+# 2. Azure REST API calls
+# 3. PowerShell scripts
+# 4. Application code using Azure SDK
+#
+# The infrastructure above provides all the necessary Azure resources
+# (Search Service, Storage Account, AI Services, OpenAI) with proper
+# networking, security, and RBAC permissions configured.
